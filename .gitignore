@@ -1,0 +1,17 @@
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+
+# Player data
+player_profile.json
+
+# Stockfish binary (optional: you may store it elsewhere)
+stockfish.exe
+
+# PyGame cache (if any)
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
