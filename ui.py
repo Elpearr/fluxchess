@@ -1,3 +1,5 @@
+# DEFINITIONS
+
 import pygame
 import chess
 import os
@@ -12,14 +14,14 @@ HIGHLIGHT_COLOR = (200, 80, 80, 100)
 TARGET_COLOR = (80, 180, 120, 120)
 ARROW_COLOR = (70, 140, 220, 140)
 
+
 # TWEENING ANIMATIONS
 
-
 def ease_out_quad(t):
-    # t in [0, 1]
+    # quadratic easing curve
     return 1 - (1 - t) * (1 - t)
 
-def lerp(a, b, t):
+def lerp(a, b, t):      # linear interpolation
     return a + (b - a) * t
 
 class MoveAnimator:
