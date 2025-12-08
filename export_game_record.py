@@ -5,7 +5,30 @@ import chess.pgn
 
 # Write single game record; SAN list + PGN, to .jsonl file
 # Write to existing directory with the games saved moves in memory, alongside outcome and final ELO
-def export_game_record(path, moves, outcome, ai_final_elo):
+def _build_pgn(moves, result_str=None):
+    # Build a PGN string from a list of chess.Move. Optionally set result header.
+    game = chess.pgn.Game()
+    if result_str:
+        game.headers["RESULT"] = result_str
+
+    node = game
+    for mv in moves:
+        node = node.add_main_variation(mv)
+
+    return str(game)
+
+
+def write_live_pgn(path, moves):
+    """Overwrite a PGN file with the current game so far."""
+    try:
+        pgn_str = _build_pgn(moves)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(pgn_str)
+    except Exception as e:
+        print(f"[WARN] Failed to write live PGN: {e}")
+
+
+def export_game_record(path, moves, outcome, ai_final_elo, feedback=None):
     try:
         # Convert moves to SAN
         moves_san = []
@@ -17,18 +40,7 @@ def export_game_record(path, moves, outcome, ai_final_elo):
             tmp_board.push(mv)
 
         # --- Build PGN using python-chess ---
-        game = chess.pgn.Game()  # fresh PGN object
-        game.headers["RESULT"] = outcome.result()
-
-        node = game       # pointer to current PGN node
-        tmp_board = chess.Board()  # fresh board again for PGN structure
-
-        for mv in moves:
-            # Append move into PGN's mainline
-            node = node.add_main_variation(mv)
-            tmp_board.push(mv)
-
-        pgn_str = str(game)  # convert entire PGN object to raw PGN text
+        pgn_str = _build_pgn(moves, outcome.result())
 
         # Build JSON record for .jsonl logging 
         record = {
@@ -41,6 +53,7 @@ def export_game_record(path, moves, outcome, ai_final_elo):
             ),
             "ai_final_elo": ai_final_elo,
             "moves_san": moves_san,
+            "feedback": feedback if feedback is not None else [],
             "pgn": pgn_str
         }
 

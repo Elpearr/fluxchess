@@ -183,3 +183,28 @@ def show_text(win, text, y_offset=10, color=(255,255,255), font_size=24):
     font = pygame.font.SysFont("arial", font_size)
     surf = font.render(text, True, color)
     win.blit(surf, (10, HEIGHT + y_offset))
+
+
+def show_wrapped_text(win, text, y_offset=10, color=(255,255,255), font_size=24, max_width=620, line_spacing=4):
+    """Render multi-line text that wraps within max_width."""
+    font = pygame.font.SysFont("arial", font_size)
+    words = text.split()
+    lines = []
+    current = ""
+    for word in words:
+        trial = f"{current} {word}".strip()
+        w, _ = font.size(trial)
+        if w <= max_width:
+            current = trial
+        else:
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+
+    y = HEIGHT + y_offset
+    for line in lines:
+        surf = font.render(line, True, color)
+        win.blit(surf, (10, y))
+        y += surf.get_height() + line_spacing

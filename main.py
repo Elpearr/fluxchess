@@ -2,8 +2,8 @@
 
 
 
-"""
-python main.py --engine "C:\\Users\\imael\\Documents\\YSTE-26\\FXCHESS-GAMMA - EXE TEST\\dragon-64bit-avx2.exe"
+r"""
+python main.py --engine "C:\Users\imael\Documents\YSTE-26\FXCHESS-DELTA\dragon-64bit-avx2.exe"
 """
 
 
@@ -14,13 +14,14 @@ python main.py --engine "C:\\Users\\imael\\Documents\\YSTE-26\\FXCHESS-GAMMA - E
 import argparse
 from player_profile import PlayerProfile
 from engine_wrapper import EngineWrapper
-from game_loop import run_game_loop   # ← now valid
+from game_loop import run_game_loop  
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--persist", default="player_profile.json")
     ap.add_argument("--time", type=int, default=200)
     ap.add_argument("--games-json", default="game_history.jsonl")
+    ap.add_argument("--live-pgn", default="live_game.pgn", help="Continuously overwrite this PGN file with the current game (set to '' to disable).")
     ap.add_argument("--human-color", choices=["white", "black"], default="white")
     ap.add_argument(
         "--engine",
@@ -28,6 +29,9 @@ def main():
         help="Path to the chess engine executable",
     )
     args = ap.parse_args()
+
+    if args.live_pgn == "":
+        args.live_pgn = None
 
     profile = PlayerProfile.load(args.persist)
     engine = EngineWrapper(args.engine, args.time)

@@ -13,12 +13,22 @@ from ui import (
     draw_board,
     get_square_from_mouse,
     show_text,
+    show_wrapped_text,
     WIDTH,
     HEIGHT,
     FPS,
     MoveAnimator,
 )
-from export_game_record import export_game_record
+from export_game_record import export_game_record, write_live_pgn
+from feedback_client import request_feedback
+
+FEEDBACK_PROMPT = """You are a concise chess coach.
+Position (FEN): {fen}
+Player move: {move_san}
+Cp swing for player: {delta_cp:+}
+Player rating: {elo}
+Move quality: {classification}
+INSTRUCTIONS: One short sentence. State the verdict (good/inaccuracy/blunder/okay) and how this move affected the position or let the opponent respond, using ONLY the data above. Do NOT suggest or name any other moves or plans. If uncertain, reply "No advice."""
 
 
 class GameState:
@@ -33,13 +43,15 @@ class GameState:
         self.last_move_delta = None     # centipawn evaluation difference for the last human move
         self.ai_previews = None         # holds ai “preview” moves and their scores
         self.move_history = []          # list of all chess.Move objects played in the game
+        self.last_move_feedback = None  # most recent feedback text from LLM
+        self.move_feedback = []         # feedback list aligned with move_history
 
 
 def create_initial_state(human_white: bool) -> GameState:       # constructs and returns a new GameState with given human colour
     return GameState(human_white=human_white)
 
 
-def reset_game(state, human_white, profile, engine, animator):
+def reset_game(state, human_white, profile, engine, animator, args):
 
     # Reset board + UI + evaluation state for a fresh game
     state.board.reset()
@@ -50,12 +62,16 @@ def reset_game(state, human_white, profile, engine, animator):
     state.last_move_delta = None
     state.ai_previews = None
     state.move_history = []             
+    state.last_move_feedback = None
+    state.move_feedback = []
     animator.animations = []        # clear all
 
     engine.set_strength(profile.target_elo)     # reconfigure the engine difficulty based on the current target_elo from the profile; after adaptation from previous games
+    if args.live_pgn:
+        write_live_pgn(args.live_pgn, state.move_history)
 
 
-def handle_human_input(event, state, profile, engine, animator):
+def handle_human_input(event, state, profile, engine, animator, args):
     
     # Process mouse clicks while the game is active
 
@@ -89,9 +105,45 @@ def handle_human_input(event, state, profile, engine, animator):
                 else:
                     print(f"[HUMAN] {move_san} (no eval) Elo={profile.target_elo}")
 
+                # Kick off async feedback request to local LLM (Ollama). Keep non-blocking.
+                delta_for_prompt = delta_cp if delta_cp is not None else 0
+
+                # coarse classification for the prompt to anchor the LLM
+                if delta_for_prompt <= -150:
+                    classification = "blunder"
+                elif delta_for_prompt <= -60:
+                    classification = "inaccuracy"
+                elif delta_for_prompt >= 60:
+                    classification = "good"
+                else:
+                    classification = "okay"
+
+                prompt = FEEDBACK_PROMPT.format(
+                    fen=state.board.fen(),
+                    move_san=move_san,
+                    delta_cp=delta_for_prompt,
+                    elo=profile.target_elo,
+                    classification=classification,
+                )
+
+                idx = len(state.move_history)  # feedback aligns with the move about to be pushed
+                while len(state.move_feedback) <= idx:
+                    state.move_feedback.append(None)
+
+                def _set_feedback(text, i=idx):
+                    cleaned = " ".join(text.split())
+                    state.last_move_feedback = cleaned
+                    state.move_feedback[i] = cleaned
+                    print(f"[COACH] {cleaned}")
+
+                state.last_move_feedback = "Waiting for feedback..."
+                request_feedback(prompt, cb=_set_feedback)
+
                 state.board.push(move)          # make move (internally)
                 state.move_history.append(move)     # log
                 animator.start(move.from_square, move.to_square)    # make move (animation)
+                if args.live_pgn:
+                    write_live_pgn(args.live_pgn, state.move_history)
 
                 state.selected_square = None    
                 state.legal_targets = []
@@ -103,7 +155,7 @@ def handle_human_input(event, state, profile, engine, animator):
                 state.legal_targets = []
 
 
-def maybe_handle_ai_move(state, profile, engine, animator):
+def maybe_handle_ai_move(state, profile, engine, animator, args):
     # Handle AI previews and AI move execution.
     if state.board.is_game_over():  # skip if game over
         return
@@ -124,7 +176,10 @@ def maybe_handle_ai_move(state, profile, engine, animator):
     move_san = state.board.san(move)    # SAN for log
     state.board.push(move)              # make move (internal)
     state.move_history.append(move)     # add to log
+    state.move_feedback.append(None)    # AI moves don't need feedback; keep alignment
     animator.start(move.from_square, move.to_square)    # make animation move
+    if args.live_pgn:
+        write_live_pgn(args.live_pgn, state.move_history)
 
     # Pull cp value from previews if available
     cp_hint = None
@@ -170,9 +225,11 @@ def handle_game_over(state, profile, engine, args, animator):
     engine.set_strength(profile.target_elo)     # update difficulty again so next game is at new elo
 
     try:                                                # try export results to .jsonl with game history, move history, game outcome, and final elo
-        export_game_record(args.games_json, state.move_history, outcome, profile.target_elo)
+        export_game_record(args.games_json, state.move_history, outcome, profile.target_elo, state.move_feedback)
     except Exception as e:
         print(f"[WARN] Failed to save game record: {e}")    # in case error
+    if args.live_pgn:
+        write_live_pgn(args.live_pgn, state.move_history)
 
 
 def draw_hud(win, state, profile):
@@ -184,14 +241,17 @@ def draw_hud(win, state, profile):
     if state.last_move_delta is not None:
         show_text(win, f"Last move delta (cp): {state.last_move_delta:+}", 70)
 
+    if state.last_move_feedback:
+        show_wrapped_text(win, f"Coach: {state.last_move_feedback}", 90, (180, 220, 255), max_width=620, line_spacing=2)
+
     if state.board.is_game_over():
-        show_text(win, "Game Over - Press R to restart (C to swap colours)", 85, (255, 100, 100))
+        show_text(win, "Game Over - Press R to restart (C to swap colours)", 110, (255, 100, 100))
 
 
 def run_game_loop(profile, engine, args):
     # Runs PyGame loop until close
     pygame.init()
-    win = pygame.display.set_mode((WIDTH, HEIGHT + 120))    # draw main window + offset for the text HUD
+    win = pygame.display.set_mode((WIDTH, HEIGHT + 180))    # more HUD space for feedback lines
     pygame.display.set_caption("FXCHESS")
 
     load_images()       # from ui.py
@@ -214,14 +274,14 @@ def run_game_loop(profile, engine, args):
                     if event.key == pygame.K_ESCAPE:    # esc = stop
                         running = False
                     elif event.key == pygame.K_r:       # r = reset
-                        reset_game(state, state.human_white, profile, engine, animator)
+                        reset_game(state, state.human_white, profile, engine, animator, args)
                     elif event.key == pygame.K_c:       # c = colour change
-                        reset_game(state, not state.human_white, profile, engine, animator)
+                        reset_game(state, not state.human_white, profile, engine, animator, args)
 
                 else:
-                    handle_human_input(event, state, profile, engine, animator) # if anything else it'll still try; includes mouse input
+                    handle_human_input(event, state, profile, engine, animator, args) # if anything else it'll still try; includes mouse input
 
-            maybe_handle_ai_move(state, profile, engine, animator)          # let ai think / preview
+            maybe_handle_ai_move(state, profile, engine, animator, args)          # let ai think / preview
             handle_game_over(state, profile, engine, args, animator)        # if game is over start logging
 
             win.fill((50, 50, 50))      # reset window
