@@ -22,19 +22,22 @@ from ui import (
 from export_game_record import export_game_record, write_live_pgn
 from feedback_client import request_feedback
 
-FEEDBACK_PROMPT = """You are a strict chess evaluator. Use ONLY the data given.
+FEEDBACK_PROMPT = """
+
+You are a concise chess coach. Use ONLY the data below.
 
 FEN: {fen}
 Move: {move_san}
 Centipawn swing: {delta_cp:+}
-Rating: {elo}
 Quality: {classification}
 
 Write ONE short sentence:
 - Start with the Quality word.
-- Explain the effect using ONLY the centipawn swing (e.g., small change = equal, large drop = worse).
-- Do NOT mention plans, pieces, openings, or alternate moves.
-- If unsure, reply exactly: "No advice."
+- Describe the effect of the move using simple language (e.g., "helped", "did not help", "made the position worse", "kept things equal").
+- Base this ONLY on the size of the centipawn swing.
+- Do NOT mention piece names, plans, tactics, or alternative moves.
+- If the effect is unclear from the numbers, reply: "No advice."
+
 """
 
 

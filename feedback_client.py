@@ -4,9 +4,8 @@ import urllib.request
 
 
 def request_feedback(prompt, model="llama3.2:3b", url="http://localhost:11434/api/generate", max_tokens=40, temperature=0.15, cb=None):
-    """
-    Fire-and-forget call to a local Ollama server. Returns via callback when done.
-    """
+    
+    # Fire-and-forget call to a local Ollama server, returns via callback when done
     def _worker():
         text = "No feedback available."
         try:

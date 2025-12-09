@@ -74,33 +74,37 @@ class EngineWrapper:
         """
         Estimate move quality in centipawns relative to the mover.
         Returns (after - before) cp; positive means the move improved the position.
+        Uses board copies so we don't disturb the live state and keeps POV fixed.
+        Removes tempo bias by evaluating "before" with a null move so both evals
+        are from the position where the opponent is to move.
         """
         try:
-            pov_color = board.turn  # color about to move (the human)
+            mover = board.turn  # color about to move
             limit = chess.engine.Limit(time=max(0.1, self.movetime_ms / 1000))
 
-            info_before = self.engine.analyse(board, limit)
-            score_before = info_before.get("score")
-            if score_before is None:
-                return None
+            # Work on copies to avoid touching the live board
+            before_board = board.copy(stack=False)
+            # Apply a null move so turn matches the "after" position (opponent to move)
+            if before_board.is_check():
+                # Avoid illegal null move; fall back to raw board
+                pass
+            else:
+                before_board.push(chess.Move.null())
+            after_board = board.copy(stack=False)
+            after_board.push(move)
 
-            before_cp = score_before.pov(pov_color).score(mate_score=100000)
-            if before_cp is None:
-                return None
+            def score_cp(b):
+                info = self.engine.analyse(b, limit)
+                sc = info.get("score")
+                return None if sc is None else sc.pov(mover).score(mate_score=100000)
 
-            board.push(move)
-            info_after = self.engine.analyse(board, limit)
-            board.pop()
-
-            score_after = info_after.get("score")
-            if score_after is None:
-                return None
-
-            after_cp = score_after.pov(pov_color).score(mate_score=100000)
-            if after_cp is None:
+            before_cp = score_cp(before_board)
+            after_cp = score_cp(after_board)
+            if before_cp is None or after_cp is None:
                 return None
 
             return after_cp - before_cp
+
         except Exception as e:
             print(f"[WARN] Failed to evaluate move: {e}")
             return None
