@@ -22,13 +22,20 @@ from ui import (
 from export_game_record import export_game_record, write_live_pgn
 from feedback_client import request_feedback
 
-FEEDBACK_PROMPT = """You are a concise chess coach.
-Position (FEN): {fen}
-Player move: {move_san}
-Cp swing for player: {delta_cp:+}
-Player rating: {elo}
-Move quality: {classification}
-INSTRUCTIONS: One short sentence. State the verdict (good/inaccuracy/blunder/okay) and how this move affected the position or let the opponent respond, using ONLY the data above. Do NOT suggest or name any other moves or plans. If uncertain, reply "No advice."""
+FEEDBACK_PROMPT = """You are a strict chess evaluator. Use ONLY the data given.
+
+FEN: {fen}
+Move: {move_san}
+Centipawn swing: {delta_cp:+}
+Rating: {elo}
+Quality: {classification}
+
+Write ONE short sentence:
+- Start with the Quality word.
+- Explain the effect using ONLY the centipawn swing (e.g., small change = equal, large drop = worse).
+- Do NOT mention plans, pieces, openings, or alternate moves.
+- If unsure, reply exactly: "No advice."
+"""
 
 
 class GameState:

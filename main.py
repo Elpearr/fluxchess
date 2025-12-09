@@ -15,6 +15,7 @@ import argparse
 from player_profile import PlayerProfile
 from engine_wrapper import EngineWrapper
 from game_loop import run_game_loop  
+from utils import resource_path
 
 def main():
     ap = argparse.ArgumentParser()
@@ -25,8 +26,8 @@ def main():
     ap.add_argument("--human-color", choices=["white", "black"], default="white")
     ap.add_argument(
         "--engine",
-        default=r"C:\Users\imael\Documents\FXCHESS-GAMMA\dragon-64bit-avx2.exe",
-        help="Path to the chess engine executable",
+        default=resource_path("dragon-64bit-avx2.exe"),
+        help="Path to the chess engine executable (defaults to bundled dragon-64bit-avx2.exe)",
     )
     args = ap.parse_args()
 
