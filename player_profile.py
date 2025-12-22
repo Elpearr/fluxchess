@@ -40,10 +40,9 @@ class PlayerProfile:
         self.target_elo = clamp(new_elo, self.elo_min, self.elo_max)
 
     def adjust_midgame(self, delta_cp):
-        """
-        Adjust Elo mid-game based on the centipawn swing of the last move.
-        Positive delta means the player's move improved their position.
-        """
+        #   Adjust Elo mid-game based on the centipawn swing of the last move.
+        #   Positive delta means the player's move improved their position.
+        
         if delta_cp is None:
             return
 
