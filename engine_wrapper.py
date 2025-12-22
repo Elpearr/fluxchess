@@ -11,7 +11,7 @@ class EngineWrapper:
         self._supports_skill = "Skill Level" in self.engine.options
 
     def set_strength(self, target_elo):
-        """Set engine difficulty based on target Elo."""
+        #    Set engine difficulty based on target Elo.
         try:
             if self._supports_limit_strength and self._supports_elo:
                 self.engine.configure({
@@ -43,10 +43,10 @@ class EngineWrapper:
         return result.move
 
     def preview_moves(self, board, target_elo, pv_count=5):
-        """
-        Return a list of (move, cp_score) candidate lines for display.
-        cp_score is from the side to move (AI) perspective.
-        """
+        
+        #   Return a list of (move, cp_score) candidate lines for display.
+        #   cp_score is from the side to move (AI) perspective.
+        
         try:
             limit_time = max(0.2, min(0.8, self.movetime_ms / 800.0))
             info = self.engine.analyse(
@@ -72,7 +72,6 @@ class EngineWrapper:
 
     def evaluate_move(self, board, move):
     
-    # More robust evaluation: - POV fixed (removes tempo bias) - clamps insane evals - smooths delta swings  - ignores small opening noise; gracias chatgpt
         try:
             mover = board.turn
             limit = chess.engine.Limit(time=max(0.1, self.movetime_ms / 1000))
