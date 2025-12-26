@@ -6,7 +6,7 @@ def clamp(x, lo, hi):
     return max(lo, min(hi, x))
 
 def resource_path(relative_path):
-    """Get absolute path for PyInstaller or normal execution."""
+    # Get absolute path for PyInstaller or normal execution.
     if hasattr(sys, "_MEIPASS"):  # PyInstaller temporary folder
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.abspath("."), relative_path)
