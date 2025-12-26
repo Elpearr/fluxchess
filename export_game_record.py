@@ -19,7 +19,7 @@ def _build_pgn(moves, result_str=None):
 
 
 def write_live_pgn(path, moves):
-    """Overwrite a PGN file with the current game so far."""
+    # Overwrite a PGN file with the current game so far.
     try:
         pgn_str = _build_pgn(moves)
         with open(path, "w", encoding="utf-8") as f:
