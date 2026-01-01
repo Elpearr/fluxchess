@@ -39,7 +39,7 @@ def export_game_record(path, moves, outcome, ai_final_elo, feedback=None):
             moves_san.append(tmp_board.san(mv))
             tmp_board.push(mv)
 
-        # --- Build PGN using python-chess ---
+        # Build PGN using python-chess
         pgn_str = _build_pgn(moves, outcome.result())
 
         # Build JSON record for .jsonl logging 
